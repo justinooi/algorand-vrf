@@ -4,14 +4,15 @@ const { types } = require("@algo-builder/web");
 async function run(runtimeEnv, deployer) {
   const master = deployer.accountsByName.get("master");
   // get app info
-  const approvalFile = "vrf_approval.py";
-  const clearStateFile = "vrf_clearstate.py";
   const app = deployer.getApp("VRFApp");
 
   const appCallArgs = [
+    // app call
     convert.stringToBytes("Random"),
-    convert.uint64ToBigEndian(2529800),
-    convert.stringToBytes("Test"),
+    // block round
+    convert.uint64ToBigEndian(25366608),
+    // user seed
+    convert.stringToBytes("NewSeed"),
   ];
 
   await deployer.executeTx({

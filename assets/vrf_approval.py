@@ -1,26 +1,45 @@
 from pyteal import *
 
 def approval_program():
+
+    # create 2 global states
+    # OldNumber - holds an int value that represents the previous random number generated
+    # Number - holds an int value that represents the most recent random number generated
     handle_creation = Seq([
         App.globalPut(Bytes("OldNumber"), Int(0)),
         App.globalPut(Bytes("Number"), Int(0)),
         Return(Int(1))
     ])
 
+    # storage vars for processing
     scratchNumber = ScratchVar(TealType.uint64)
+    scratchReturn = ScratchVar(TealType.bytes)
 
     random_number = Seq([
+        # store previous number in scratch space
         scratchNumber.store(App.globalGet(Bytes("Number"))),
+
+        # store scratch space into global state
         App.globalPut(Bytes("OldNumber"), scratchNumber.load()),
 
+        # build inner txn
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.MethodCall(
+
+            # call the random oracle on testnet
             app_id=Int(110096026),
+            # abi method signature
             method_signature="get(uint64,byte[])byte[]",
+            # provide args
             args=[Txn.application_args[1], Txn.application_args[2]],
         ),
         InnerTxnBuilder.Submit(),
-        App.globalPut(Bytes("Number"), Btoi(Substring(InnerTxn.last_log(), Int(2), Int(34)))),
+
+        # returns a byte array with 4 bytes of data context, hence we remove them.
+        scratchReturn.store(Suffix(InnerTxn.last_log(), Int(4))),
+
+        # use extractuint64 to extract a uint64 from the first 8 bytes - you can change Int(0) to Int(0) to Int(24) as you need 8 bytes for uint64
+        App.globalPut(Bytes("Number"), ExtractUint64(scratchReturn.load(), Int(0))),
         Return(Int(1))
     ])
 
